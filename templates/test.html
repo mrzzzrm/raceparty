@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% from "_formhelpers.html" import render_field %}
+
+{% block content %}
+<form method="post" action="/test">
+    <dl>
+        {{ render_field(form.foo) }}
+        {% for sub in form.subs %}
+            {{ render_field(sub) }}
+        {% endfor %}
+    </dl>
+    <p><input type="submit" value="Register">
+</form>
+{% endblock %}
