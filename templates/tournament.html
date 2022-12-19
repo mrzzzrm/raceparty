@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Tournament "{{ name }}"</h1>
+<h2>Ranking</h2>
+
+<table role="grid">
+    <th>
+        <td>Player</td>
+        <td>Name</td>
+        <td>Points</td>
+    </th>
+    {% for player in ranking %}
+    <tr>
+        <td></td>
+        <td>{{ player.place}}</td>
+        <td>{{ player.name}}</td>
+        <td>{{ player.points}}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Cups</h2>
+<table role="grid">
+    {% for cup in cups %}
+    <tr>
+        <td>
+            {% if cup.is_next == true %}
+            <form type="hidden" id="cup" action="/submit_cup" method="post">
+                <input type="hidden" name="cup_id" value="{{cup.id}}"/>
+            </form>
+            {% endif %}
+        </td>
+        {% for player in cup.players %}
+        <td>
+            {% if cup.is_next == true %}
+            <label>{{player.name}}
+                <input form="cup" type="text" name="players.{{ player.id }}">
+            </label>
+            {% else %}
+            {{ player.name }}
+            {% if player.points is not none %}
+            ({{ player.points }})
+            {% endif %}
+            {% endif %}
+        </td>
+        {% endfor %}
+
+        <td>
+            {% if cup.is_next %}
+            <input form="cup" type="submit" value="Submit">
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

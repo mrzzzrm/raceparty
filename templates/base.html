@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/pico.min.css') }}">
+    <title>{% block title %}{% endblock %} RaceParty </title>
+    {% endblock %}
+</head>
+<body>
+<div id="content">
+    <form action="/"><input type="submit" value="Home"/></form>
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block head %}
+<head>
+  {{ super() }}
+  <script type="text/javascript">
+    function addPlayer() {
+      var hook = document.getElementById("newplayerhook");
+
+      var numPlayers =
+
+      // Add label
+      label = document.createElement("label");
+      label.innerHTML = "Player";
+      hook.parentNode.insertBefore(label, hook);
+
+      // Add input
+      input = document.createElement("input");
+      input.type = "text";
+      input.name = "player";
+      input.id = "player";
+      hook.parentNode.insertBefore(input, hook);
+      hook.parentNode.insertBefore(document.createElement("br"), hook);
+
+    }
+  </script>
+</head>
+{% endblock %}
+
+{% block content %}
+<title>New Tournament</title>
+<h1>New Tournament</h1>
+<form id="tournament_form" action="/create_new_tournament" method="post">
+  <label for="tournament_name">Name</label>
+  <input type="text" name="tournament_name" id="tournament_name">
+  <br>
+
+  <label for="player">Player</label>
+  <input type="text" name="player" id="player">
+  <br>
+
+  <div id="newplayerhook"/>
+
+  <input type="button" value="Add Player" onclick="addPlayer()"><br>
+
+  <input type="submit" value="Submit">
+</form>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Welcome to RaceParty!</h1>
+
+<table>
+    <th>
+    <td>Name</td>
+    <td>Players</td>
+    </th>
+    {% for tournament in tournaments %}
+    <tr>
+        <td/>
+        <td><a href="/tournament/{{ tournament["id"] }}">{{tournament["name"]}}</a></td>
+        <td>
+            {% for player in tournament["players"] %}
+            <li>{{ player }}</li>
+            {% endfor %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<form action="/new">
+    <input type="submit" value="New"/>
+</form>
+{% endblock %}
