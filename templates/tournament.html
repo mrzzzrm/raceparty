@@ -3,45 +3,67 @@
 
 {% block content %}
 <h1>Tournament "{{ name }}"</h1>
-<h2>Ranking</h2>
 
-<table role="grid">
-    <th>
-        <td>Player</td>
-        <td>Name</td>
-        <td>Points</td>
-    </th>
-    {% for player in ranking %}
-    <tr>
-        <td></td>
-        <td>{{ player.place}}</td>
-        <td>{{ player.name}}</td>
-        <td>{{ player.points}}</td>
-    </tr>
-    {% endfor %}
-</table>
+<article>
+    <h2>Ranking</h2>
 
-<h2>Next Cup</h2>
-<form method="post" action="/submit_cup">
-    {% for player in next_cup_form.players %}
-        {{ render_field(player) }}
-    {% endfor %}
-    <input type="submit" value="Submit"/>
-</form>
-
-<h2>Cups</h2>
-<table role="grid">
-    {% for cup in cups %}
-    <tr>
-        {% for player in cup.players %}
-        <td>
-            {{ player.name }}
-            {% if player.points is not none %}
-            ({{ player.points }})
-            {% endif %}
-        </td>
+    <table role="grid">
+        <thead>
+        <tr>
+            <th scope="col">Rank</th>
+            <th scope="col">Name</th>
+            <th scope="col"><a href="?ordering=player_points">Points</a></th>
+            <th scope="col"><a href="?ordering=player_points_per_cup">Points/Cup</a></th>
+            <th scope="col">Cups</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for player in ranking %}
+        <tr>
+            <th scope="row"><strong>{{ player.place}}</strong></th>
+            <td><strong>{{ player.name}}</strong></td>
+            <td><strong>{{ player.points}}</strong></td>
+            <td><strong>{{ player.points_per_cup}}</strong></td>
+            <td>{{ player.num_cups}}</td>
+        </tr>
         {% endfor %}
-    </tr>
-    {% endfor %}
-</table>
+        </tbody>
+    </table>
+</article>
+
+<article>
+    <h2>Next Cup</h2>
+    <form method="post" action="/submit_cup">
+
+        <fieldset>
+            <div class="grid">
+                {{ next_cup_form.cup_id }}
+                {% for player in next_cup_form.players %}
+                {{ render_field(player) }}
+                {% endfor %}
+            </div>
+        </fieldset>
+        <input type="submit" value="Submit"/>
+    </form>
+</article>
+
+<article>
+    <details>
+        <summary>Cups</summary>
+        <table role="grid">
+            {% for cup in cups %}
+            <tr>
+                {% for player in cup.players %}
+                <td>
+                    {{ player.name }}
+                    {% if player.points is not none %}
+                    ({{ player.points }})
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+    </details>
+</article>
 {% endblock %}

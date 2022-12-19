@@ -17,38 +17,47 @@ class TestForm(Form):
     )
 
 
+def from_post(post):
+    form = CupForm()
+    form.cup_id.data = post["cup_id"]
+
+    for player_id, points in post["players"].items():
+        form.players.append_entry()
+        form.players.entries[-1].data = points
+
+    return form
+
+
+def from_cup_id(cup_id):
+    form = CupForm()
+    form.cup_id.data = cup_id
+
+    connection = get_db_connection()
+    cup_players = connection.execute("""
+    SELECT 
+        p.name player_name,
+        p.id player_id
+    FROM
+        cup_players cp, players p  
+    WHERE 1=1                        
+        AND cp.cup_id = ?
+        AND cp.player_id = p.id
+    ORDER BY
+        player_id ASC            
+    """, (cup_id,)).fetchall()
+
+    for cup_player in cup_players:
+        player_id = cup_player["player_id"]
+        form.players.append_entry()
+        form.players[-1].label = cup_player["player_name"]
+        form.players[-1].name = f"players.{player_id}"
+
+    return form
+
+
 class CupForm(Form):
+    cup_id = HiddenField("Bello")
     players = FieldList(IntegerField())
-
-    def init(cup_id):
-        form = CupForm(
-            {"cup_id": cup_id, "players": }
-        )
-
-    def __init__(self, cup_id):
-        super().__init__()
-        self.cup_id = HiddenField("cup_id")
-        self.cup_id.data = cup_id
-
-        connection = get_db_connection()
-        cup_players = connection.execute("""
-        SELECT 
-            p.name player_name,
-            p.id player_id
-        FROM
-            cup_players cp, players p  
-        WHERE 1=1                        
-            AND cp.cup_id = ?
-            AND cp.player_id = p.id
-        ORDER BY
-            player_id ASC            
-        """, (cup_id, )).fetchall()
-
-        for cup_player in cup_players:
-            player_id = cup_player["player_id"]
-            self.players.append_entry()
-            self.players[-1].label = cup_player["player_name"]
-            self.players[-1].id = f"player_points.{player_id}"
 
 
 def get_db_connection():
@@ -133,9 +142,16 @@ def tournament(tournament_id):
 
     name = connection.execute("SELECT name FROM tournaments WHERE id = ?", (tournament_id,)).fetchone()[0]
 
+    ordering = request.args.get('ordering')
+    ordering = ordering if ordering in ("player_points", "player_points_per_cup") else "player_points"
+
     # Calculate the current ranking
-    ranking = connection.execute("""
-    SELECT MIN(p.name) player_name, SUM(cp.points) player_points
+    ranking = connection.execute(f"""
+    SELECT 
+        MIN(p.name) player_name, 
+        SUM(cp.points) player_points, 
+        AVG(cp.points) player_points_per_cup,
+        COUNT(cp.points) player_num_cups
     FROM cups c, cup_players cp, players p
     WHERE 1=1
         AND c.tournament_id = ?
@@ -144,16 +160,21 @@ def tournament(tournament_id):
     GROUP BY 
         p.id
     ORDER BY
-        player_points DESC    
-    """, (tournament_id,)).fetchall()
+        {ordering} DESC    
+    """, (tournament_id)).fetchall()
 
-    ranking = [{"place": place + 1, "name": player["player_name"],
-                "points": 0 if player["player_points"] is None else player["player_points"]} for place, player in
+    ranking = [{"place": place + 1,
+                "name": player["player_name"],
+                "points": 0 if player["player_points"] is None else player["player_points"],
+                "points_per_cup": "{:.2f}".format(player["player_points_per_cup"]),
+                "num_cups": player["player_num_cups"]
+                } for place, player in
                enumerate(ranking)]
 
     # Calculate the "Next Cup" form
     next_cup_id = get_next_cup(tournament_id)
-    next_cup_form = CupForm(next_cup_id)
+    next_cup_form = from_cup_id(next_cup_id)
+    print(next_cup_form.cup_id)
 
     # Calculate the list of cups
     cup_ids = connection.execute("""
@@ -165,7 +186,7 @@ def tournament(tournament_id):
         AND c.tournament_id = ?
     ORDER BY
         c.id ASC        
-    """, (tournament_id, )).fetchall()
+    """, (tournament_id,)).fetchall()
     cup_ids = [entry["cup_id"] for entry in cup_ids]
     cups = []
     for cup_id in cup_ids:
@@ -185,7 +206,7 @@ def tournament(tournament_id):
             AND cp.player_id = p.id 
         ORDER BY 
             player_id ASC
-        """, (cup_id, )).fetchall()
+        """, (cup_id,)).fetchall()
 
         cup["players"] = [{
             "name": cup_player["player_name"],
@@ -232,20 +253,21 @@ def create_new_tournament():
 
 @app.route("/submit_cup", methods=['POST'])
 def submit_cup():
-    form = formencode.variabledecode.variable_decode(request.form)
-    form = CupForm(form)
+    form2 = formencode.variabledecode.variable_decode(request.form)
+    form = from_post(form2)
 
     connection = get_db_connection()
 
-    tournament_id = connection.execute("SELECT tournament_id FROM cups WHERE id = ?", (form.cup_id,)).fetchone()[
+    tournament_id = connection.execute("SELECT tournament_id FROM cups WHERE id = ?", (form.cup_id.data,)).fetchone()[
         "tournament_id"]
 
-    if request.method == "POST" and form.validate():
-        for player in form.players:
+    if form.validate():
+        for player_id, player_points in form2["players"].items():
             connection.execute("UPDATE cup_players SET points = ? WHERE cup_id = ? AND player_id = ?",
-                               (player.data, form.cup_id, player.id)).fetchall()
-
+                               (player_points, form.cup_id.data, player_id)).fetchall()
         connection.commit()
+    else:
+        "Invalid form"
 
     return redirect(f"/tournament/{tournament_id}")
 

@@ -8,8 +8,22 @@
 </head>
 <body>
 <div id="content">
-    <form action="/"><input type="submit" value="Home"/></form>
-    {% block content %}{% endblock %}
+    <main class="container-fluid">
+    <nav>
+        <ul>
+            <li>
+                <a href="/">Home</a>
+            </li>
+        </ul>
+
+        <ul>
+            <li><strong>RaceParty</strong></li>
+        </ul>
+    </nav>
+    </main>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
 </div>
 </body>
 </html>
