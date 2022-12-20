@@ -23,7 +23,7 @@ def from_post(post):
 
     for player_id, points in post["players"].items():
         form.players.append_entry()
-        form.players.entries[-1].data = points
+        form.players.entries[-1].data = int(points)
 
     return form
 
@@ -56,8 +56,8 @@ def from_cup_id(cup_id):
 
 
 class CupForm(Form):
-    cup_id = HiddenField("Bello")
-    players = FieldList(IntegerField())
+    cup_id = HiddenField()
+    players = FieldList(IntegerField(validators=[validators.NumberRange(0, 60)]))
 
 
 def get_db_connection():
@@ -166,7 +166,7 @@ def tournament(tournament_id):
     ranking = [{"place": place + 1,
                 "name": player["player_name"],
                 "points": 0 if player["player_points"] is None else player["player_points"],
-                "points_per_cup": "{:.2f}".format(player["player_points_per_cup"]),
+                "points_per_cup": "{:.2f}".format(player["player_points_per_cup"] or 0),
                 "num_cups": player["player_num_cups"]
                 } for place, player in
                enumerate(ranking)]
@@ -219,6 +219,35 @@ def tournament(tournament_id):
     return render_template("tournament.html", name=name, ranking=ranking, cups=cups, next_cup_form=next_cup_form)
 
 
+def create_cups(player_ids, max_num_players_in_cup):
+    num_players_in_cup = min(len(player_ids), max_num_players_in_cup)
+
+    cups = [cup for cup in itertools.combinations(player_ids, num_players_in_cup)]
+
+    def rate(cups):
+        num_races = {player: 0 for player in player_ids}
+        for cup in cups:
+            for player in cup:
+                num_races[player] += 1
+        min_races = min(num_races.values())
+        max_races = max(num_races.values())
+        #return max_races - min_races
+        return sum([(num_races[player] - min_races)**2 for player in player_ids])
+
+    for i in range(1, len(cups)):
+        min_rating = None
+        for j in range(i, len(cups)):
+            cups[i], cups[j] = cups[j], cups[i]
+            rating = rate(cups[0:i + 1])
+            if min_rating is not None and rating > min_rating:
+                cups[i], cups[j] = cups[j], cups[i]
+            else:
+                min_rating = rating
+        print("Min Rating: ", cups[0:i+1], min_rating)
+
+    return cups
+
+
 @app.route("/create_new_tournament", methods=['GET', 'POST'])
 def create_new_tournament():
     tournament_name = request.form["tournament_name"]
@@ -237,10 +266,7 @@ def create_new_tournament():
         cursor.execute("INSERT INTO players (name, tournament_id) VALUES (?, ?)", (player, tournament_id)).fetchone()
         player_ids.append(cursor.lastrowid)
 
-    num_players_in_cup = min(len(player_ids), 4)
-
-    for cup in itertools.combinations(player_ids, num_players_in_cup):
-        print(f"Cup: {cup}")
+    for cup in create_cups(player_ids, 4):
         cursor.execute("INSERT INTO cups (tournament_id) VALUES (?)", (tournament_id,)).fetchone()
         cup_id = cursor.lastrowid
         for player_id in cup:
@@ -254,6 +280,7 @@ def create_new_tournament():
 @app.route("/submit_cup", methods=['POST'])
 def submit_cup():
     form2 = formencode.variabledecode.variable_decode(request.form)
+    print(form2)
     form = from_post(form2)
 
     connection = get_db_connection()
@@ -273,4 +300,4 @@ def submit_cup():
 
 
 if __name__ == "__main__":
-    tournaments_overview()
+    print(create_cups([1, 2, 3, 4, 5, 6, 7], 4))
