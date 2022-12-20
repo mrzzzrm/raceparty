@@ -106,7 +106,7 @@ def tournaments_overview():
         tournaments2.append({
             "id": tournament["id"],
             "name": tournament["name"],
-            "players": [player["name"] for player in players]
+            "players": ", ". join([player["name"] for player in players])
         })
 
     return render_template("tournaments_overview.html", tournaments=tournaments2)
@@ -173,8 +173,10 @@ def tournament(tournament_id):
 
     # Calculate the "Next Cup" form
     next_cup_id = get_next_cup(tournament_id)
-    next_cup_form = from_cup_id(next_cup_id)
-    print(next_cup_form.cup_id)
+    if next_cup_id is not None:
+        next_cup_form = from_cup_id(next_cup_id)
+    else:
+        next_cup_form = None
 
     # Calculate the list of cups
     cup_ids = connection.execute("""
@@ -216,7 +218,18 @@ def tournament(tournament_id):
 
         cups.append(cup)
 
-    return render_template("tournament.html", name=name, ranking=ranking, cups=cups, next_cup_form=next_cup_form)
+    num_cups_done = connection.execute("""
+    SELECT COUNT(*) num_cups
+    FROM cups c
+    WHERE 1=1 
+        AND c.tournament_id = ?
+        AND NOT EXISTS (
+            SELECT * FROM cup_players cp WHERE cp.cup_id = c.id AND cp.points is NULL 
+        )        
+    """, (tournament_id, )).fetchone()["num_cups"]
+    num_cups = len(cups)
+
+    return render_template("tournament.html", name=name, ranking=ranking, cups=cups, next_cup_form=next_cup_form, num_cups_done=num_cups_done, num_cups=num_cups)
 
 
 def create_cups(player_ids, max_num_players_in_cup):

@@ -32,6 +32,7 @@
 </article>
 
 <article>
+    {% if next_cup_form is not none %}
     <h2>Next Cup</h2>
     <form method="post" action="/submit_cup">
 
@@ -45,12 +46,18 @@
         </fieldset>
         <input type="submit" value="Submit"/>
     </form>
+    {% else %}
+    <h2>All Cups Are Done, Congrats To The Winner!</h2>
+    {% endif %}
 </article>
 
 <article>
+    <progress value="{{num_cups_done}}" max="{{num_cups}}"></progress>
     <details>
-        <summary>Cups</summary>
+        <summary>Cups ({{num_cups_done}} / {{num_cups}})</summary>
         <table role="grid">
+            <thead></thead>
+            <tbody>
             {% for cup in cups %}
             <tr>
                 {% for player in cup.players %}
@@ -63,6 +70,7 @@
                 {% endfor %}
             </tr>
             {% endfor %}
+            </tbody>
         </table>
     </details>
 </article>

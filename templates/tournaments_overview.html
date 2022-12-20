@@ -3,25 +3,28 @@
 {% block content %}
 <h1>Welcome to RaceParty!</h1>
 
-<table>
-    <th>
-    <td>Name</td>
-    <td>Players</td>
-    </th>
-    {% for tournament in tournaments %}
-    <tr>
-        <td/>
-        <td><a href="/tournament/{{ tournament["id"] }}">{{tournament["name"]}}</a></td>
-        <td>
-            {% for player in tournament["players"] %}
-            <li>{{ player }}</li>
-            {% endfor %}
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+<article>
+    <table role="grid">
+        <thead>
+        <tr>
+            <td>Name</td>
+            <td>Players</td>
+        </tr>
+        </thead>
+        <tbody>
+        {% for tournament in tournaments %}
+        <tr>
+            <td><a href="/tournament/{{ tournament["id"] }}"><strong>{{tournament["name"]}}</strong></a></td>
+            <td>
+                 {{ tournament["players"] }}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 
-<form action="/new">
-    <input type="submit" value="New"/>
-</form>
+    <form action="/new">
+        <input type="submit" value="New"/>
+    </form>
+</article>
 {% endblock %}
