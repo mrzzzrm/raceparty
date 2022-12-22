@@ -339,22 +339,24 @@ def create_cups2(player_ids, num_cups, cup_capacity):
     num_cups_by_player = {player_id: 0 for player_id in player_ids}
 
     for c in range(0, num_full_cups):
-        found = False
+        best_candidate = None
+        best_candidate_penalty = None
+
         for candidate_cup in candidate_cups:
             for player_id in candidate_cup:
                 num_cups_by_player[player_id] += 1
-            if max(num_cups_by_player.values()) - min(num_cups_by_player.values()) <= 1:
-                full_cups.append(candidate_cup)
-                candidate_cups.remove(candidate_cup)
-                found = True
-                break
-            else:
-                for player_id in candidate_cup:
-                    num_cups_by_player[player_id] -= 1
-        assert found
+            penalty = max(num_cups_by_player.values()) - min(num_cups_by_player.values())
+            if best_candidate_penalty is None or penalty < best_candidate_penalty:
+                best_candidate = candidate_cup
+                best_candidate_penalty = penalty
+            for player_id in candidate_cup:
+                num_cups_by_player[player_id] -= 1
 
-    for c in full_cups:
-        print(c)
+        full_cups.append(best_candidate)
+        candidate_cups.remove(best_candidate)
+
+    assert max(num_cups_by_player.values()) == min(num_cups_by_player.values())
+
 
 
 
