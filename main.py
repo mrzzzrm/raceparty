@@ -6,6 +6,7 @@ from markupsafe import escape
 from wtforms import Form, HiddenField, StringField, FieldList, IntegerField, validators
 import itertools
 import formencode
+import math
 
 app = Flask(__name__)
 
@@ -106,7 +107,7 @@ def tournaments_overview():
         tournaments2.append({
             "id": tournament["id"],
             "name": tournament["name"],
-            "players": ", ". join([player["name"] for player in players])
+            "players": ", ".join([player["name"] for player in players])
         })
 
     return render_template("tournaments_overview.html", tournaments=tournaments2)
@@ -147,6 +148,8 @@ def tournament(tournament_id):
 
     # Calculate the current ranking
     ranking = connection.execute(f"""
+    SELECT *, 
+        RANK() OVER (ORDER BY {ordering} DESC) player_place FROM (
     SELECT 
         MIN(p.name) player_name, 
         SUM(cp.points) player_points, 
@@ -159,16 +162,18 @@ def tournament(tournament_id):
         AND cp.player_id = p.id
     GROUP BY 
         p.id
+    )
     ORDER BY
-        {ordering} DESC    
-    """, (tournament_id)).fetchall()
+        player_place ASC    
+    """, (tournament_id,)).fetchall()
 
-    ranking = [{"place": place + 1,
+    ranking = [{"place": player["player_place"] if idx == 0 or ranking[idx - 1]["player_place"] != player[
+        "player_place"] else "",
                 "name": player["player_name"],
                 "points": 0 if player["player_points"] is None else player["player_points"],
                 "points_per_cup": "{:.2f}".format(player["player_points_per_cup"] or 0),
                 "num_cups": player["player_num_cups"]
-                } for place, player in
+                } for idx, player in
                enumerate(ranking)]
 
     # Calculate the "Next Cup" form
@@ -226,10 +231,11 @@ def tournament(tournament_id):
         AND NOT EXISTS (
             SELECT * FROM cup_players cp WHERE cp.cup_id = c.id AND cp.points is NULL 
         )        
-    """, (tournament_id, )).fetchone()["num_cups"]
+    """, (tournament_id,)).fetchone()["num_cups"]
     num_cups = len(cups)
 
-    return render_template("tournament.html", name=name, ranking=ranking, cups=cups, next_cup_form=next_cup_form, num_cups_done=num_cups_done, num_cups=num_cups)
+    return render_template("tournament.html", name=name, ranking=ranking, cups=cups, next_cup_form=next_cup_form,
+                           num_cups_done=num_cups_done, num_cups=num_cups)
 
 
 def create_cups(player_ids, max_num_players_in_cup):
@@ -244,8 +250,8 @@ def create_cups(player_ids, max_num_players_in_cup):
                 num_races[player] += 1
         min_races = min(num_races.values())
         max_races = max(num_races.values())
-        #return max_races - min_races
-        return sum([(num_races[player] - min_races)**2 for player in player_ids])
+        # return max_races - min_races
+        return sum([(num_races[player] - min_races) ** 2 for player in player_ids])
 
     for i in range(1, len(cups)):
         min_rating = None
@@ -256,7 +262,7 @@ def create_cups(player_ids, max_num_players_in_cup):
                 cups[i], cups[j] = cups[j], cups[i]
             else:
                 min_rating = rating
-        print("Min Rating: ", cups[0:i+1], min_rating)
+        print("Min Rating: ", cups[0:i + 1], min_rating)
 
     return cups
 
@@ -312,5 +318,47 @@ def submit_cup():
     return redirect(f"/tournament/{tournament_id}")
 
 
+def is_valid(player_ids, cups):
+    cups_per_player = {player: 0 for player in player_ids}
+    for cup in cups:
+        for player in cup:
+            cups_per_player[player] += 1
+    return min(cups_per_player.values()) == max(cups_per_player.values())
+
+
+def create_cups2(player_ids, num_cups, cup_capacity):
+    candidate_cups = [cup for cup in itertools.combinations(player_ids, cup_capacity)]
+    num_players = len(player_ids)
+    num_cups = min(num_cups, len(candidate_cups))
+    num_slots = num_cups * cup_capacity
+    num_slots_per_player = math.floor(num_slots / num_players)
+    num_slots = num_slots_per_player * num_players
+    num_full_cups = math.floor(num_slots / cup_capacity)
+
+    full_cups = []
+    num_cups_by_player = {player_id: 0 for player_id in player_ids}
+
+    for c in range(0, num_full_cups):
+        found = False
+        for candidate_cup in candidate_cups:
+            for player_id in candidate_cup:
+                num_cups_by_player[player_id] += 1
+            if max(num_cups_by_player.values()) - min(num_cups_by_player.values()) <= 1:
+                full_cups.append(candidate_cup)
+                candidate_cups.remove(candidate_cup)
+                found = True
+                break
+            else:
+                for player_id in candidate_cup:
+                    num_cups_by_player[player_id] -= 1
+        assert found
+
+    for c in full_cups:
+        print(c)
+
+
+
+
 if __name__ == "__main__":
-    print(create_cups([1, 2, 3, 4, 5, 6, 7], 4))
+    player_ids = [0, 1, 2, 3, 4, 5, 6]
+    cups = create_cups2([0, 1, 2, 3, 4, 5], num_cups=6, cup_capacity=4)
